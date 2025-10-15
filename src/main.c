@@ -1,89 +1,70 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sqlite3.h>
+#include "../include/db.h"
 
-/*
-Simple command-line skeleton.
-Usage examples:
-    ./clisuite help
-    ./clisuite todo add "task name"
-    ./clisuite note list
-*/
+void print_help(void);
 
-void print_help(void) {
-    printf("Command-Line Productivity Suite\n");
-    printf("Usage:\n");
-    printf("  clisuite todo [add|list|done]\n");
-    printf("  clisuite note [new|list|view]\n");
-    printf("  clisuite git  [status|push|log]\n");
-    printf("  clisuite help\n");
-}
+void handle_todo(int argc, char *argv[], sqlite3 *db) {
+    if (argc < 3) { printf("Usage: clisuite todo [add|list|done]\n"); return; }
 
-void handle_todo(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: clisuite todo [add|list|done]\n");
-        return;
-    }
     if (strcmp(argv[2], "add") == 0) {
-        printf("TODO: add new todo → '%s'\n", (argc > 3) ? argv[3] : "(no text)");
-    } else if (strcmp(argv[2], "list") == 0) {
-        printf("TODO: list todos\n");
-    } else if (strcmp(argv[2], "done") == 0) {
-        printf("TODO: mark item done\n");
-    } else {
+        if (argc < 4) { printf("Provide task text.\n"); return; }
+        char sql[512];
+        snprintf(sql, sizeof(sql),
+                 "INSERT INTO todos(task,priority,done) VALUES('%s',0,0);",
+                 argv[3]);
+        exec_query(db, sql);
+        printf("Added todo: %s\n", argv[3]);
+    } 
+    else if (strcmp(argv[2], "list") == 0) {
+        const char *sql = "SELECT id,task,done FROM todos;";
+        sqlite3_stmt *stmt;
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+            printf("Todos:\n");
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                int id = sqlite3_column_int(stmt, 0);
+                const unsigned char *task = sqlite3_column_text(stmt, 1);
+                int done = sqlite3_column_int(stmt, 2);
+                printf(" [%c] %d: %s\n", done ? 'x' : ' ', id, task);
+            }
+        }
+        sqlite3_finalize(stmt);
+    } 
+    else if (strcmp(argv[2], "done") == 0) {
+        if (argc < 4) { printf("Provide todo ID.\n"); return; }
+        char sql[128];
+        snprintf(sql, sizeof(sql),
+                 "UPDATE todos SET done=1 WHERE id=%d;", atoi(argv[3]));
+        exec_query(db, sql);
+        printf("Marked todo %s as done.\n", argv[3]);
+    } 
+    else {
         printf("Unknown todo command.\n");
     }
 }
 
-void handle_note(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: clisuite note [new|list|view]\n");
-        return;
-    }
-    if (strcmp(argv[2], "new") == 0) {
-        printf("NOTE: create new note\n");
-    } else if (strcmp(argv[2], "list") == 0) {
-        printf("NOTE: list notes\n");
-    } else if (strcmp(argv[2], "view") == 0) {
-        printf("NOTE: view specific note\n");
-    } else {
-        printf("Unknown note command.\n");
-    }
-}
-
-void handle_git(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: clisuite git [status|push|log]\n");
-        return;
-    }
-    if (strcmp(argv[2], "status") == 0) {
-        printf("GIT: show repo status\n");
-    } else if (strcmp(argv[2], "push") == 0) {
-        printf("GIT: auto add/commit/push\n");
-    } else if (strcmp(argv[2], "log") == 0) {
-        printf("GIT: show commit log\n");
-    } else {
-        printf("Unknown git command.\n");
-    }
+void print_help(void) {
+    printf("Usage:\n");
+    printf("  clisuite todo [add|list|done]\n");
+    printf("  clisuite help\n");
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_help();
-        return 0;
-    }
+    sqlite3 *db = init_db();
+    if (!db) return 1;
 
-    if (strcmp(argv[1], "help") == 0) {
+    if (argc < 2) { print_help(); close_db(db); return 0; }
+
+    if (strcmp(argv[1], "todo") == 0) {
+        handle_todo(argc, argv, db);
+    } else if (strcmp(argv[1], "help") == 0) {
         print_help();
-    } else if (strcmp(argv[1], "todo") == 0) {
-        handle_todo(argc, argv);
-    } else if (strcmp(argv[1], "note") == 0) {
-        handle_note(argc, argv);
-    } else if (strcmp(argv[1], "git") == 0) {
-        handle_git(argc, argv);
     } else {
-        printf("Unknown command. Type 'clisuite help'.\n");
+        printf("Unknown command.\n");
     }
 
+    close_db(db);
     return 0;
 }
