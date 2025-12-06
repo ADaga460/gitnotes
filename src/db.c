@@ -1,17 +1,21 @@
 #include "../include/db.h"
+#include "../include/git_integration.h"
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
 
 sqlite3* init_db(void) {
-    // Ensure data directory exists
-    struct stat st = {0};
-    if (stat("data", &st) == -1) {
-        mkdir("data", 0755);
+    char *git_dir = get_git_dir();
+    if (!git_dir) {
+        fprintf(stderr, "Not in a git repository. Run 'clisuite init' first.\n");
+        return NULL;
     }
 
+    char db_path[512];
+    snprintf(db_path, sizeof(db_path), "%s/clisuite/clisuite.db", git_dir);
+
     sqlite3 *db;
-    int rc = sqlite3_open("data/clisuite.db", &db);
+    int rc = sqlite3_open(db_path, &db);
     if (rc) {
         fprintf(stderr, "DB open failed: %s\n", sqlite3_errmsg(db));
         return NULL;
@@ -23,12 +27,6 @@ sqlite3* init_db(void) {
         "task TEXT NOT NULL,"
         "priority INTEGER DEFAULT 0,"
         "done INTEGER DEFAULT 0"
-        ");"
-        "CREATE TABLE IF NOT EXISTS notes ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "title TEXT,"
-        "content TEXT,"
-        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
         ");";
 
     if (exec_query(db, init_sql) != SQLITE_OK) {
