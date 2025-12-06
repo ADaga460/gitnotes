@@ -5,6 +5,7 @@
 #include "db.h"
 #include "git_integration.h"
 #include "notes.h"
+#include "sync.h"
 
 void print_help(void);
 
@@ -86,50 +87,108 @@ void handle_note(int argc, char *argv[]) {
 
 void handle_attach(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite attach [commit-hash] [--note note_id] [--todo todo_id]\n");
-        printf("       clisuite attach HEAD [--note note_id] [--todo todo_id]\n");
+        printf("Usage: clisuite attach [type] [path] --note [note_id]\n");
+        printf("Types: commit, file, dir\n");
+        printf("Examples:\n");
+        printf("  clisuite attach commit HEAD --note note_123\n");
+        printf("  clisuite attach file src/main.c --note note_456\n");
+        printf("  clisuite attach dir src/ --note note_789\n");
         return;
     }
 
-    const char *commit = argv[2];
-    if (strcmp(commit, "HEAD") == 0) {
-        commit = get_current_commit();
-        if (!commit) {
-            fprintf(stderr, "Could not get current commit.\n");
-            return;
-        }
-    }
-
+    const char *target_type = argv[2];
+    const char *target_path = argc > 3 ? argv[3] : NULL;
     const char *note_id = NULL;
-    const char *todo_id = NULL;
 
-    for (int i = 3; i < argc; i++) {
+    for (int i = 4; i < argc; i++) {
         if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
             note_id = argv[++i];
-        } else if (strcmp(argv[i], "--todo") == 0 && i + 1 < argc) {
-            todo_id = argv[++i];
         }
     }
 
-    attach_to_commit(commit, note_id, todo_id);
+    if (!note_id) {
+        fprintf(stderr, "No note specified. Use --note [note_id]\n");
+        return;
+    }
+
+    if (strcmp(target_type, "commit") == 0) {
+        const char *commit = target_path;
+        if (strcmp(commit, "HEAD") == 0) {
+            commit = get_current_commit();
+            if (!commit) {
+                fprintf(stderr, "Could not get current commit.\n");
+                return;
+            }
+        }
+        attach_to_commit(commit, note_id, NULL);
+    } 
+    else if (strcmp(target_type, "file") == 0 || strcmp(target_type, "dir") == 0) {
+        if (!target_path) {
+            fprintf(stderr, "Provide %s path.\n", target_type);
+            return;
+        }
+        attach_note_to_target(note_id, target_type, target_path);
+    }
+    else {
+        fprintf(stderr, "Unknown target type: %s\n", target_type);
+    }
 }
 
 void handle_show(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite show [commit-hash|HEAD]\n");
+        printf("Usage: clisuite show [type] [path] [--recursive]\n");
+        printf("Types: commit, file, dir\n");
+        printf("Examples:\n");
+        printf("  clisuite show commit HEAD\n");
+        printf("  clisuite show file src/main.c\n");
+        printf("  clisuite show dir src/\n");
+        printf("  clisuite show dir src/ --recursive\n");
         return;
     }
 
-    const char *commit = argv[2];
-    if (strcmp(commit, "HEAD") == 0) {
-        commit = get_current_commit();
-        if (!commit) {
-            fprintf(stderr, "Could not get current commit.\n");
-            return;
+    const char *target_type = argv[2];
+    const char *target_path = argc > 3 ? argv[3] : NULL;
+    
+    int recursive = 0;
+    for (int i = 4; i < argc; i++) {
+        if (strcmp(argv[i], "--recursive") == 0 || strcmp(argv[i], "-r") == 0) {
+            recursive = 1;
+            break;
         }
     }
 
-    show_commit_metadata(commit);
+    if (strcmp(target_type, "commit") == 0) {
+        const char *commit = target_path ? target_path : "HEAD";
+        if (strcmp(commit, "HEAD") == 0) {
+            commit = get_current_commit();
+            if (!commit) {
+                fprintf(stderr, "Could not get current commit.\n");
+                return;
+            }
+        }
+        show_commit_metadata(commit);
+    }
+    else if (strcmp(target_type, "dir") == 0) {
+        if (!target_path) {
+            fprintf(stderr, "Provide directory path.\n");
+            return;
+        }
+        if (recursive) {
+            show_directory_notes_recursive(target_path);
+        } else {
+            show_target_notes(target_type, target_path);
+        }
+    }
+    else if (strcmp(target_type, "file") == 0) {
+        if (!target_path) {
+            fprintf(stderr, "Provide file path.\n");
+            return;
+        }
+        show_target_notes(target_type, target_path);
+    }
+    else {
+        fprintf(stderr, "Unknown target type: %s\n", target_type);
+    }
 }
 
 void handle_hook(int argc, char *argv[]) {
@@ -137,24 +196,30 @@ void handle_hook(int argc, char *argv[]) {
 
     if (strcmp(argv[2], "post-commit") == 0) {
         printf("[clisuite] post-commit hook triggered\n");
-        // Future: auto-attach pending items
     }
     else if (strcmp(argv[2], "post-merge") == 0) {
         printf("[clisuite] post-merge hook triggered\n");
-        // Future: merge metadata
     }
 }
 
 void print_help(void) {
-    printf("clisuite - Git-integrated note-taking CLI\n\n");
+    printf("clisuite - Git-integrated productivity CLI\n\n");
     printf("Usage:\n");
-    printf("  clisuite init                    - Initialize clisuite in git repo\n");
-    printf("  clisuite install-hooks           - Install git hooks\n");
-    printf("  clisuite todo [add|list|done|delete]\n");
-    printf("  clisuite note [add|list|show|delete]\n");
-    printf("  clisuite attach [commit] [--note id] [--todo id]\n");
-    printf("  clisuite show [commit]           - Show commit metadata\n");
+    printf("  clisuite init                              - Initialize clisuite in git repo\n");
+    printf("  clisuite install-hooks                     - Install git hooks\n");
+    printf("  clisuite todo [add|list|done|delete]       - Manage private todos\n");
+    printf("  clisuite note [add|list|show|delete]       - Manage shared notes\n");
+    printf("  clisuite attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
+    printf("  clisuite show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
+    printf("  clisuite sync                              - Sync metadata to .clisuite/\n");
+    printf("  clisuite pull                              - Pull remote metadata\n");
+    printf("  clisuite reset [--tracked-only]            - Erase all clisuite data\n");
     printf("  clisuite help\n");
+    printf("\nExamples:\n");
+    printf("  clisuite attach commit HEAD --note note_123\n");
+    printf("  clisuite attach file src/main.c --note note_456\n");
+    printf("  clisuite show file src/main.c\n");
+    printf("  clisuite show dir src/ --recursive\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -173,6 +238,34 @@ int main(int argc, char *argv[]) {
 
     if (strcmp(argv[1], "install-hooks") == 0) {
         install_hooks();
+        install_sync_hooks();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "sync") == 0) {
+        sync_to_tracked();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "pull") == 0) {
+        sync_from_tracked();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "reset") == 0) {
+        int tracked_only = 0;
+        if (argc > 2 && strcmp(argv[2], "--tracked-only") == 0) {
+            tracked_only = 1;
+        }
+        printf("WARNING: This will erase all clisuite data!\n");
+        printf("Continue? (y/n): ");
+        char confirm;
+        scanf(" %c", &confirm);
+        if (confirm == 'y' || confirm == 'Y') {
+            reset_clisuite(tracked_only);
+        } else {
+            printf("Reset cancelled.\n");
+        }
         return 0;
     }
 

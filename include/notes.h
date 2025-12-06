@@ -9,4 +9,10 @@ void show_note(const char *note_id);
 
 int delete_note(const char *note_id);
 
+int attach_note_to_target(const char *note_id, const char *target_type, const char *target_path);
+
+void show_target_notes(const char *target_type, const char *target_path);
+
+void show_directory_notes_recursive(const char *dir_path);
+
 #endif

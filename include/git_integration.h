@@ -17,4 +17,6 @@ void show_commit_metadata(const char *commit_hash);
 
 int install_hooks(void);
 
+void show_current_commit_notes(void);
+
 #endif

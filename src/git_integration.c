@@ -1,4 +1,4 @@
-#include "../include/git_integration.h"
+#include "git_integration.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -129,6 +129,66 @@ void show_commit_metadata(const char *commit_hash) {
     }
     
     fclose(f);
+}
+
+void show_current_commit_notes(void) {
+    char *commit_hash = get_current_commit();
+    if (!commit_hash) {
+        printf("Could not get current commit.\n");
+        return;
+    }
+    
+    char *git_dir = get_git_dir();
+    if (!git_dir) return;
+    
+    char metadata_path[512];
+    snprintf(metadata_path, sizeof(metadata_path), 
+             "%s/clisuite/metadata/%s.json", git_dir, commit_hash);
+    
+    FILE *f = fopen(metadata_path, "r");
+    if (!f) {
+        return;
+    }
+    
+    char line[512];
+    char note_id[128] = "";
+    
+    while (fgets(line, sizeof(line), f)) {
+        if (strstr(line, "\"note_id\"")) {
+            sscanf(line, "  \"note_id\": \"%[^\"]\"", note_id);
+        }
+    }
+    fclose(f);
+    
+    if (strlen(note_id) == 0) return;
+    
+    // Display the note
+    char note_path[512];
+    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+    
+    FILE *nf = fopen(note_path, "r");
+    if (!nf) return;
+    
+    char ntitle[256] = "";
+    char ncontent[512] = "";
+    
+    while (fgets(line, sizeof(line), nf)) {
+        if (strstr(line, "\"title\"")) {
+            sscanf(line, "  \"title\": \"%[^\"]\"", ntitle);
+        }
+        if (strstr(line, "\"content\"")) {
+            sscanf(line, "  \"content\": \"%[^\"]\"", ncontent);
+        }
+    }
+    fclose(nf);
+    
+    printf("\n╔════════════════════════════════════════════════════════╗\n");
+    printf("║  NOTES FROM CURRENT COMMIT                             ║\n");
+    printf("╠════════════════════════════════════════════════════════╣\n");
+    printf("║  %s\n", ntitle);
+    printf("║  \n");
+    printf("║  %s\n", ncontent);
+    printf("╚════════════════════════════════════════════════════════╝\n\n");
 }
 
 int install_hooks(void) {
