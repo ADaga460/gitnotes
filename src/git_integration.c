@@ -134,7 +134,7 @@ void show_commit_metadata(const char *commit_hash) {
 void show_current_commit_notes(void) {
     char *commit_hash = get_current_commit();
     if (!commit_hash) {
-        printf("Could not get current commit.\n");
+        printf("\033[90mCould not get current commit.\033[0m\n");
         return;
     }
     
@@ -147,7 +147,7 @@ void show_current_commit_notes(void) {
     
     FILE *f = fopen(metadata_path, "r");
     if (!f) {
-        return;
+        return; // No notes for this commit - silent
     }
     
     char line[512];
@@ -182,13 +182,13 @@ void show_current_commit_notes(void) {
     }
     fclose(nf);
     
-    printf("\n╔════════════════════════════════════════════════════════╗\n");
-    printf("║  NOTES FROM CURRENT COMMIT                             ║\n");
-    printf("╠════════════════════════════════════════════════════════╣\n");
-    printf("║  %s\n", ntitle);
-    printf("║  \n");
-    printf("║  %s\n", ncontent);
-    printf("╚════════════════════════════════════════════════════════╝\n\n");
+    printf("\n\033[90m╔════════════════════════════════════════════════════════╗\033[0m\n");
+    printf("\033[90m║  NOTES FROM CURRENT COMMIT                             ║\033[0m\n");
+    printf("\033[90m╠════════════════════════════════════════════════════════╣\033[0m\n");
+    printf("\033[90m║  \033[1;92m%s\033[90m\033[0m\n", ntitle);
+    printf("\033[90m║  \033[0m\n");
+    printf("\033[90m║  \033[97m%s\033[90m\033[0m\n", ncontent);
+    printf("\033[90m╚════════════════════════════════════════════════════════╝\033[0m\n\n");
 }
 
 int install_hooks(void) {

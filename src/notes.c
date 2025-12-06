@@ -17,7 +17,7 @@ static char* generate_note_id(void) {
 int add_note(const char *title, const char *content) {
     char *git_dir = get_git_dir();
     if (!git_dir) {
-        fprintf(stderr, "Not in a git repository.\n");
+        fprintf(stderr, "\033[90mNot in a git repository.\033[0m\n");
         return -1;
     }
     
@@ -28,7 +28,7 @@ int add_note(const char *title, const char *content) {
     
     FILE *f = fopen(note_path, "w");
     if (!f) {
-        fprintf(stderr, "Could not create note file.\n");
+        fprintf(stderr, "\033[90mCould not create note file.\033[0m\n");
         return -1;
     }
     
@@ -44,14 +44,14 @@ int add_note(const char *title, const char *content) {
     fprintf(f, "}\n");
     
     fclose(f);
-    printf("Note created: %s\n", note_id);
+    printf("\033[90mNote created: \033[0m%s\n", note_id);
     return 0;
 }
 
 void list_notes(void) {
     char *git_dir = get_git_dir();
     if (!git_dir) {
-        fprintf(stderr, "Not in a git repository.\n");
+        fprintf(stderr, "\033[90mNot in a git repository.\033[0m\n");
         return;
     }
     
@@ -60,11 +60,11 @@ void list_notes(void) {
     
     DIR *dir = opendir(notes_dir);
     if (!dir) {
-        printf("No notes found.\n");
+        printf("\033[90mNo notes found.\033[0m\n");
         return;
     }
     
-    printf("Notes:\n");
+    printf("\033[90mNotes:\033[0m\n");
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         if (strstr(entry->d_name, ".json")) {
@@ -85,7 +85,7 @@ void list_notes(void) {
                         sscanf(line, "  \"title\": \"%[^\"]\"", title);
                     }
                 }
-                printf("  [%s] %s\n", id, title);
+                printf("  \033[1;92m[%s]\033[0m %s\n", id, title);
                 fclose(f);
             }
         }
@@ -137,22 +137,24 @@ int attach_note_to_target(const char *note_id, const char *target_type, const ch
     char *git_dir = get_git_dir();
     if (!git_dir) return -1;
     
+    // Verify note exists
     char note_path[512];
     snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
     FILE *test = fopen(note_path, "r");
     if (!test) {
-        fprintf(stderr, "Note not found: %s\n", note_id);
+        fprintf(stderr, "\033[90mNote not found: %s\033[0m\n", note_id);
         return -1;
     }
     fclose(test);
     
+    // Create attachment metadata
     char attach_path[512];
     snprintf(attach_path, sizeof(attach_path), 
              "%s/clisuite/metadata/attach_%ld.json", git_dir, time(NULL));
     
     FILE *f = fopen(attach_path, "w");
     if (!f) {
-        fprintf(stderr, "Could not create attachment.\n");
+        fprintf(stderr, "\033[90mCould not create attachment.\033[0m\n");
         return -1;
     }
     
@@ -163,7 +165,7 @@ int attach_note_to_target(const char *note_id, const char *target_type, const ch
     fprintf(f, "}\n");
     
     fclose(f);
-    printf("Attached note %s to %s: %s\n", note_id, target_type, target_path);
+    printf("\033[90mAttached note %s to %s: %s\033[0m\n", note_id, target_type, target_path);
     return 0;
 }
 
@@ -176,11 +178,11 @@ void show_target_notes(const char *target_type, const char *target_path) {
     
     DIR *dir = opendir(metadata_dir);
     if (!dir) {
-        printf("No attachments found.\n");
+        printf("\033[90mNo attachments found.\033[0m\n");
         return;
     }
     
-    printf("Notes for %s '%s':\n", target_type, target_path);
+    printf("\033[90mNotes for %s '%s':\033[0m\n", target_type, target_path);
     int found = 0;
     
     struct dirent *entry;
@@ -232,9 +234,9 @@ void show_target_notes(const char *target_type, const char *target_path) {
                         }
                         fclose(nf);
                         
-                        printf("\n  [%s] %s\n", note_id, ntitle);
-                        printf("  Created: %s\n", created);
-                        printf("  %s\n", ncontent);
+                        printf("\n  \033[1;92m[%s] %s\033[0m\n", note_id, ntitle);
+                        printf("  \033[90mCreated: %s\033[0m\n", created);
+                        printf("  \033[97m%s\033[0m\n", ncontent);
                         found = 1;
                     }
                 }
@@ -245,7 +247,7 @@ void show_target_notes(const char *target_type, const char *target_path) {
     closedir(dir);
     
     if (!found) {
-        printf("  (no notes attached)\n");
+        printf("  \033[90m(no notes attached)\033[0m\n");
     }
 }
 
@@ -253,16 +255,60 @@ void show_directory_notes_recursive(const char *dir_path) {
     char *git_dir = get_git_dir();
     if (!git_dir) return;
     
-    printf("\n=== Notes in directory '%s' (recursive) ===\n", dir_path);
+    printf("\n\033[90m=== Notes in directory '%s' (recursive) ===\033[0m\n", dir_path);
     
-    show_target_notes("dir", dir_path);
+    // First show notes attached to the directory itself
+    char metadata_dir[512];
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
     
+    DIR *mdir = opendir(metadata_dir);
+    if (!mdir) return;
+    
+    // Check for directory notes
+    struct dirent *mentry;
+    int dir_has_notes = 0;
+    while ((mentry = readdir(mdir)) != NULL) {
+        if (strstr(mentry->d_name, "attach_") && strstr(mentry->d_name, ".json")) {
+            char attach_path[512];
+            snprintf(attach_path, sizeof(attach_path), "%s/%s", metadata_dir, mentry->d_name);
+            
+            FILE *f = fopen(attach_path, "r");
+            if (f) {
+                char line[512];
+                char ttype[64] = "";
+                char tpath[256] = "";
+                
+                while (fgets(line, sizeof(line), f)) {
+                    if (strstr(line, "\"target_type\"")) {
+                        sscanf(line, "  \"target_type\": \"%[^\"]\"", ttype);
+                    }
+                    if (strstr(line, "\"target_path\"")) {
+                        sscanf(line, "  \"target_path\": \"%[^\"]\"", tpath);
+                    }
+                }
+                fclose(f);
+                
+                if (strcmp(ttype, "dir") == 0 && strcmp(tpath, dir_path) == 0) {
+                    dir_has_notes = 1;
+                    break;
+                }
+            }
+        }
+    }
+    closedir(mdir);
+    
+    if (dir_has_notes) {
+        show_target_notes("dir", dir_path);
+    }
+    
+    // Now recursively scan for files with notes
     DIR *dir = opendir(dir_path);
     if (!dir) return;
     
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || 
+            strcmp(entry->d_name, ".git") == 0 || strcmp(entry->d_name, ".clisuite") == 0)
             continue;
         
         char full_path[512];
@@ -271,16 +317,14 @@ void show_directory_notes_recursive(const char *dir_path) {
         struct stat st;
         if (stat(full_path, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
+                // Recursively show subdirectory
                 show_directory_notes_recursive(full_path);
             } else if (S_ISREG(st.st_mode)) {
-                char metadata_dir[512];
-                snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
-                
-                DIR *mdir = opendir(metadata_dir);
+                // Check if this specific file has notes attached
+                mdir = opendir(metadata_dir);
                 if (!mdir) continue;
                 
-                int has_notes = 0;
-                struct dirent *mentry;
+                int file_has_notes = 0;
                 while ((mentry = readdir(mdir)) != NULL) {
                     if (strstr(mentry->d_name, "attach_") && strstr(mentry->d_name, ".json")) {
                         char attach_path[512];
@@ -303,7 +347,7 @@ void show_directory_notes_recursive(const char *dir_path) {
                             fclose(f);
                             
                             if (strcmp(ttype, "file") == 0 && strcmp(tpath, full_path) == 0) {
-                                has_notes = 1;
+                                file_has_notes = 1;
                                 break;
                             }
                         }
@@ -311,7 +355,7 @@ void show_directory_notes_recursive(const char *dir_path) {
                 }
                 closedir(mdir);
                 
-                if (has_notes) {
+                if (file_has_notes) {
                     show_target_notes("file", full_path);
                 }
             }
