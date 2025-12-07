@@ -6,7 +6,9 @@
 #include "git_integration.h"
 #include "notes.h"
 #include "sync.h"
+#include <sys/stat.h>
 #include "verify.h"
+#include <_time.h>
 
 void print_help(void);
 
@@ -102,32 +104,38 @@ void handle_note(int argc, char *argv[]) {
 
 void handle_attach(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: gitnote attach [type] [path] --note [note_id]\n");
-        printf("Types: commit, file, dir\n");
+        printf("Usage: gitnote attach [path] [--note note_id | \"title\" \"content\"]\n");
+        printf("       gitnote attach commit [hash] --note note_id\n");
         printf("Examples:\n");
-        printf("  gitnote attach commit HEAD --note note_123\n");
-        printf("  gitnote attach file src/main.c --note note_456\n");
-        printf("  gitnote attach dir src/ --note note_789\n");
+        printf("  gitnote attach src/main.c \"Memory leak\" \"Line 45 leaks\"\n");
+        printf("  gitnote attach src/ --note note_123\n");
+        printf("  gitnote attach commit HEAD --note note_456\n");
         return;
     }
 
-    const char *target_type = argv[2];
-    const char *target_path = argc > 3 ? argv[3] : NULL;
-    const char *note_id = NULL;
-
-    for (int i = 4; i < argc; i++) {
-        if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
-            note_id = argv[++i];
+    const char *arg1 = argv[2];
+    
+    // Special case: explicit commit attachment
+    if (strcmp(arg1, "commit") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Provide commit hash or HEAD.\n");
+            return;
         }
-    }
-
-    if (!note_id) {
-        fprintf(stderr, "No note specified. Use --note [note_id]\n");
-        return;
-    }
-
-    if (strcmp(target_type, "commit") == 0) {
-        const char *commit = target_path;
+        
+        const char *note_id = NULL;
+        for (int i = 4; i < argc; i++) {
+            if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
+                note_id = argv[++i];
+                break;
+            }
+        }
+        
+        if (!note_id) {
+            fprintf(stderr, "Provide --note [note_id] for commit attachments.\n");
+            return;
+        }
+        
+        const char *commit = argv[3];
         if (strcmp(commit, "HEAD") == 0) {
             commit = get_current_commit();
             if (!commit) {
@@ -136,17 +144,76 @@ void handle_attach(int argc, char *argv[]) {
             }
         }
         attach_to_commit(commit, note_id, NULL);
-    } 
-    else if (strcmp(target_type, "file") == 0 || strcmp(target_type, "dir") == 0) {
-        if (!target_path) {
-            fprintf(stderr, "Provide %s path.\n", target_type);
+        return;
+    }
+    
+    const char *path = arg1;
+    struct stat st;
+    
+    if (stat(path, &st) != 0) {
+        fprintf(stderr, "Path not found: %s\n", path);
+        return;
+    }
+    
+    const char *target_type = S_ISDIR(st.st_mode) ? "dir" : "file";
+    
+    const char *note_id = NULL;
+    
+    for (int i = 3; i < argc; i++) {
+        if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) {
+            note_id = argv[++i];
+            break;
+        }
+    }
+    
+    if (!note_id) {
+        if (argc < 4) {
+            fprintf(stderr, "Provide note title or use --note [note_id].\n");
             return;
         }
-        attach_note_to_target(note_id, target_type, target_path);
+        
+        const char *title = argv[3];
+        const char *content = argc > 4 ? argv[4] : "";
+        
+        char *git_dir = get_git_dir();
+        if (!git_dir) {
+            fprintf(stderr, "Not in a git repository.\n");
+            return;
+        }
+        
+        static char new_note_id[32];
+        static int counter = 0;
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        snprintf(new_note_id, sizeof(new_note_id), "note_%ld%03ld_%d", 
+                 ts.tv_sec, ts.tv_nsec / 1000000, counter++);
+        
+        char note_path[512];
+        snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, new_note_id);
+        
+        FILE *f = fopen(note_path, "w");
+        if (!f) {
+            fprintf(stderr, "Could not create note file.\n");
+            return;
+        }
+        
+        time_t now = time(NULL);
+        char timestamp[64];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
+        
+        fprintf(f, "{\n");
+        fprintf(f, "  \"id\": \"%s\",\n", new_note_id);
+        fprintf(f, "  \"title\": \"%s\",\n", title);
+        fprintf(f, "  \"content\": \"%s\",\n", content);
+        fprintf(f, "  \"created_at\": \"%s\"\n", timestamp);
+        fprintf(f, "}\n");
+        fclose(f);
+        
+        printf("\033[90mNote created: \033[0m%s\n", new_note_id);
+        note_id = new_note_id;
     }
-    else {
-        fprintf(stderr, "Unknown target type: %s\n", target_type);
-    }
+    
+    attach_note_to_target(note_id, target_type, path);
 }
 
 void handle_show(int argc, char *argv[]) {
@@ -224,21 +291,52 @@ void print_help(void) {
     printf("  gitnote install-hooks                     - Install git hooks\n");
     printf("  gitnote verify                            - Check for orphaned attachments\n");
     printf("  gitnote repair                            - Clean up orphaned attachments\n");
-    printf("  gitnote todo [add|list|done|delete]       - Manage private todos\n");
-    printf("  gitnote note [add|edit|list|show|delete|search] - Manage shared notes\n");
-    printf("  gitnote attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
-    printf("  gitnote show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
+    printf("\n");
+    printf("Notes (shared):\n");
+    printf("  gitnote note add \"title\" \"content\"        - Create note\n");
+    printf("  gitnote note edit <id> \"title\" \"content\" - Edit note\n");
+    printf("  gitnote note list                         - List all notes\n");
+    printf("  gitnote note show <id>                    - Show note details\n");
+    printf("  gitnote note delete <id>                  - Delete note\n");
+    printf("  gitnote note search \"query\"               - Search notes\n");
+    printf("\n");
+    printf("Attach notes:\n");
+    printf("  gitnote attach <path> \"title\" \"content\"  - Create & attach note (auto-detects file/dir)\n");
+    printf("  gitnote attach <path> --note <id>         - Attach existing note\n");
+    printf("  gitnote attach commit <hash> --note <id>  - Attach to commit\n");
+    printf("\n");
+    printf("View notes:\n");
+    printf("  gitnote show file <path>                  - Show notes for file\n");
+    printf("  gitnote show dir <path> [--recursive]     - Show notes for directory\n");
+    printf("  gitnote show commit <hash>                - Show notes for commit\n");
+    printf("\n");
+    printf("Todos (private):\n");
+    printf("  gitnote todo add \"task\"                   - Add todo\n");
+    printf("  gitnote todo list                         - List todos\n");
+    printf("  gitnote todo done <id>                    - Mark todo done\n");
+    printf("  gitnote todo delete <id>                  - Delete todo\n");
+    printf("\n");
+    printf("Maintenance:\n");
     printf("  gitnote migrate <old-path> <new-path>     - Migrate attachments after file rename\n");
     printf("  gitnote sync                              - Sync metadata to .gitnote/\n");
     printf("  gitnote pull                              - Pull remote metadata\n");
     printf("  gitnote reset [--tracked-only]            - Erase all gitnote data\n");
-    printf("  gitnote help\n");
-    printf("\nExamples:\n");
-    printf("  gitnote note search \"memory leak\"\n");
-    printf("  gitnote note edit note_123 \"New Title\" \"New content\"\n");
-    printf("  gitnote attach file src/main.c --note note_456\n");
+    printf("\n");
+    printf("Examples:\n");
+    printf("  # Quick attach - create note and attach in one command\n");
+    printf("  gitnote attach src/main.c \"Memory leak\" \"Line 45 leaks memory\"\n");
+    printf("  gitnote attach src/ \"TODO\" \"Refactor this module\"\n");
+    printf("\n");
+    printf("  # Use existing note\n");
+    printf("  gitnote attach src/helper.c --note note_123456789\n");
+    printf("\n");
+    printf("  # View notes\n");
+    printf("  gitnote show file src/main.c\n");
     printf("  gitnote show dir src/ --recursive\n");
-    printf("  gitnote migrate src/old.c src/new.c\n");
+    printf("\n");
+    printf("  # Search and edit\n");
+    printf("  gitnote note search \"memory\"\n");
+    printf("  gitnote note edit note_123 \"FIXED\" \"No longer leaks\"\n");
 }
 
 int main(int argc, char *argv[]) {
