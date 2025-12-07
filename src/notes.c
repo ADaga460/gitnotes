@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 static char* generate_note_id(void) {
     static char id[32];
@@ -94,6 +95,81 @@ void list_notes(void) {
         }
     }
     closedir(dir);
+}
+
+int migrate_attachment(const char *old_path, const char *new_path) {
+    char *git_dir = get_git_dir();
+    if (!git_dir) return -1;
+    
+    char metadata_dir[512];
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/gitnote/metadata", git_dir);
+    
+    DIR *dir = opendir(metadata_dir);
+    if (!dir) {
+        printf("\033[90mNo attachments to migrate.\033[0m\n");
+        return 0;
+    }
+    
+    int migrated = 0;
+    struct dirent *entry;
+    
+    while ((entry = readdir(dir)) != NULL) {
+        if (!strstr(entry->d_name, "attach_") || !strstr(entry->d_name, ".json"))
+            continue;
+        
+        char attach_path[512];
+        snprintf(attach_path, sizeof(attach_path), "%s/%s", metadata_dir, entry->d_name);
+        
+        FILE *f = fopen(attach_path, "r");
+        if (!f) continue;
+        
+        char content[2048] = "";
+        char line[512];
+        char ttype[64] = "";
+        char tpath[256] = "";
+        char note_id[128] = "";
+        int found_old = 0;
+        
+        while (fgets(line, sizeof(line), f)) {
+            if (strstr(line, "\"target_type\"")) {
+                sscanf(line, "  \"target_type\": \"%[^\"]\"", ttype);
+            }
+            if (strstr(line, "\"target_path\"")) {
+                sscanf(line, "  \"target_path\": \"%[^\"]\"", tpath);
+            }
+            if (strstr(line, "\"note_id\"")) {
+                sscanf(line, "  \"note_id\": \"%[^\"]\"", note_id);
+            }
+        }
+        fclose(f);
+        
+        if (strcmp(tpath, old_path) == 0) {
+            found_old = 1;
+            
+            f = fopen(attach_path, "w");
+            if (f) {
+                fprintf(f, "{\n");
+                fprintf(f, "  \"note_id\": \"%s\",\n", note_id);
+                fprintf(f, "  \"target_type\": \"%s\",\n", ttype);
+                fprintf(f, "  \"target_path\": \"%s\"\n", new_path);
+                fprintf(f, "}\n");
+                fclose(f);
+                
+                printf("\033[90mMigrated attachment: %s\033[0m\n", note_id);
+                migrated++;
+            }
+        }
+    }
+    closedir(dir);
+    
+    if (migrated == 0) {
+        printf("\033[90mNo attachments found for '%s'\033[0m\n", old_path);
+    } else {
+        printf("\033[1;92m✓\033[0m Migrated %d attachment(s) from '%s' to '%s'\n", 
+               migrated, old_path, new_path);
+    }
+    
+    return migrated;
 }
 
 void show_note(const char *note_id) {
@@ -259,9 +335,13 @@ int attach_note_to_target(const char *note_id, const char *target_type, const ch
     }
     fclose(test);
     
+    // Use nanoseconds to avoid collisions
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    
     char attach_path[512];
     snprintf(attach_path, sizeof(attach_path), 
-             "%s/gitnote/metadata/attach_%ld.json", git_dir, time(NULL));
+             "%s/gitnote/metadata/attach_%ld_%09ld.json", git_dir, ts.tv_sec, ts.tv_nsec);
     
     FILE *f = fopen(attach_path, "w");
     if (!f) {

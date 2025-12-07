@@ -19,4 +19,6 @@ int edit_note(const char *note_id, const char *new_title, const char *new_conten
 
 void search_notes(const char *query);
 
+int migrate_attachment(const char *old_path, const char *new_path);
+
 #endif

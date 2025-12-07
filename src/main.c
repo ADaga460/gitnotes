@@ -228,6 +228,7 @@ void print_help(void) {
     printf("  gitnote note [add|edit|list|show|delete|search] - Manage shared notes\n");
     printf("  gitnote attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
     printf("  gitnote show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
+    printf("  gitnote migrate <old-path> <new-path>     - Migrate attachments after file rename\n");
     printf("  gitnote sync                              - Sync metadata to .gitnote/\n");
     printf("  gitnote pull                              - Pull remote metadata\n");
     printf("  gitnote reset [--tracked-only]            - Erase all gitnote data\n");
@@ -237,6 +238,7 @@ void print_help(void) {
     printf("  gitnote note edit note_123 \"New Title\" \"New content\"\n");
     printf("  gitnote attach file src/main.c --note note_456\n");
     printf("  gitnote show dir src/ --recursive\n");
+    printf("  gitnote migrate src/old.c src/new.c\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -298,6 +300,16 @@ int main(int argc, char *argv[]) {
 
     if (strcmp(argv[1], "repair") == 0) {
         repair_gitnote();
+        return 0;
+    }
+    
+    if (strcmp(argv[1], "migrate") == 0) {
+        if (argc < 4) {
+            printf("Usage: gitnote migrate <old-path> <new-path>\n");
+            printf("Example: gitnote migrate src/old.c src/new.c\n");
+            return 1;
+        }
+        migrate_attachment(argv[2], argv[3]);
         return 0;
     }
 
