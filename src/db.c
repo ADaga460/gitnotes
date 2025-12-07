@@ -7,12 +7,12 @@
 sqlite3* init_db(void) {
     char *git_dir = get_git_dir();
     if (!git_dir) {
-        fprintf(stderr, "Not in a git repository. Run 'clisuite init' first.\n");
+        fprintf(stderr, "Not in a git repository. Run 'gitnote init' first.\n");
         return NULL;
     }
 
     char db_path[512];
-    snprintf(db_path, sizeof(db_path), "%s/clisuite/clisuite.db", git_dir);
+    snprintf(db_path, sizeof(db_path), "%s/gitnote/gitnote.db", git_dir);
 
     sqlite3 *db;
     int rc = sqlite3_open(db_path, &db);

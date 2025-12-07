@@ -27,7 +27,7 @@ int add_note(const char *title, const char *content) {
     char *note_id = generate_note_id();
     char note_path[512];
     snprintf(note_path, sizeof(note_path), 
-             "%s/clisuite/notes/%s.json", git_dir, note_id);
+             "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     FILE *f = fopen(note_path, "w");
     if (!f) {
@@ -59,7 +59,7 @@ void list_notes(void) {
     }
     
     char notes_dir[512];
-    snprintf(notes_dir, sizeof(notes_dir), "%s/clisuite/notes", git_dir);
+    snprintf(notes_dir, sizeof(notes_dir), "%s/gitnote/notes", git_dir);
     
     DIR *dir = opendir(notes_dir);
     if (!dir) {
@@ -102,7 +102,7 @@ void show_note(const char *note_id) {
     
     char note_path[512];
     snprintf(note_path, sizeof(note_path), 
-             "%s/clisuite/notes/%s.json", git_dir, note_id);
+             "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     FILE *f = fopen(note_path, "r");
     if (!f) {
@@ -125,7 +125,7 @@ int delete_note(const char *note_id) {
     
     char note_path[512];
     snprintf(note_path, sizeof(note_path), 
-             "%s/clisuite/notes/%s.json", git_dir, note_id);
+             "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     if (remove(note_path) == 0) {
         printf("\033[90mDeleted note: %s\033[0m\n", note_id);
@@ -141,7 +141,7 @@ int edit_note(const char *note_id, const char *new_title, const char *new_conten
     if (!git_dir) return -1;
     
     char note_path[512];
-    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+    snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     FILE *f = fopen(note_path, "r");
     if (!f) {
@@ -190,7 +190,7 @@ void search_notes(const char *query) {
     if (!git_dir) return;
     
     char notes_dir[512];
-    snprintf(notes_dir, sizeof(notes_dir), "%s/clisuite/notes", git_dir);
+    snprintf(notes_dir, sizeof(notes_dir), "%s/gitnote/notes", git_dir);
     
     DIR *dir = opendir(notes_dir);
     if (!dir) {
@@ -251,7 +251,7 @@ int attach_note_to_target(const char *note_id, const char *target_type, const ch
     if (!git_dir) return -1;
     
     char note_path[512];
-    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+    snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, note_id);
     FILE *test = fopen(note_path, "r");
     if (!test) {
         fprintf(stderr, "\033[90mNote not found: %s\033[0m\n", note_id);
@@ -261,7 +261,7 @@ int attach_note_to_target(const char *note_id, const char *target_type, const ch
     
     char attach_path[512];
     snprintf(attach_path, sizeof(attach_path), 
-             "%s/clisuite/metadata/attach_%ld.json", git_dir, time(NULL));
+             "%s/gitnote/metadata/attach_%ld.json", git_dir, time(NULL));
     
     FILE *f = fopen(attach_path, "w");
     if (!f) {
@@ -285,7 +285,7 @@ void show_target_notes(const char *target_type, const char *target_path) {
     if (!git_dir) return;
     
     char metadata_dir[512];
-    snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/gitnote/metadata", git_dir);
     
     DIR *dir = opendir(metadata_dir);
     if (!dir) {
@@ -324,7 +324,7 @@ void show_target_notes(const char *target_type, const char *target_path) {
                 
                 if (strcmp(ttype, target_type) == 0 && strcmp(tpath, target_path) == 0) {
                     char note_path[512];
-                    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+                    snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, note_id);
                     
                     FILE *nf = fopen(note_path, "r");
                     if (nf) {
@@ -369,7 +369,7 @@ void show_directory_notes_recursive(const char *dir_path) {
     printf("\n\033[90m=== Notes in directory '%s' (recursive) ===\033[0m\n", dir_path);
     
     char metadata_dir[512];
-    snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/gitnote/metadata", git_dir);
     
     DIR *mdir = opendir(metadata_dir);
     if (mdir) {
@@ -416,7 +416,7 @@ void show_directory_notes_recursive(const char *dir_path) {
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || 
-            strcmp(entry->d_name, ".git") == 0 || strcmp(entry->d_name, ".clisuite") == 0)
+            strcmp(entry->d_name, ".git") == 0 || strcmp(entry->d_name, ".gitnote") == 0)
             continue;
         
         char full_path[512];

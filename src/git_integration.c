@@ -51,16 +51,16 @@ int init_git_structure(void) {
     
     char path[512];
     
-    snprintf(path, sizeof(path), "%s/clisuite", git_dir);
+    snprintf(path, sizeof(path), "%s/gitnote", git_dir);
     mkdir(path, 0755);
     
-    snprintf(path, sizeof(path), "%s/clisuite/notes", git_dir);
+    snprintf(path, sizeof(path), "%s/gitnote/notes", git_dir);
     mkdir(path, 0755);
     
-    snprintf(path, sizeof(path), "%s/clisuite/metadata", git_dir);
+    snprintf(path, sizeof(path), "%s/gitnote/metadata", git_dir);
     mkdir(path, 0755);
     
-    printf("Initialized clisuite in %s/clisuite/\n", git_dir);
+    printf("Initialized gitnote in %s/gitnote/\n", git_dir);
     return 0;
 }
 
@@ -85,7 +85,7 @@ int attach_to_commit(const char *commit_hash, const char *note_id, const char *t
     
     char metadata_path[512];
     snprintf(metadata_path, sizeof(metadata_path), 
-             "%s/clisuite/metadata/%s.json", git_dir, commit_hash);
+             "%s/gitnote/metadata/%s.json", git_dir, commit_hash);
     
     FILE *f = fopen(metadata_path, "w");
     if (!f) {
@@ -114,7 +114,7 @@ void show_commit_metadata(const char *commit_hash) {
     
     char metadata_path[512];
     snprintf(metadata_path, sizeof(metadata_path), 
-             "%s/clisuite/metadata/%s.json", git_dir, commit_hash);
+             "%s/gitnote/metadata/%s.json", git_dir, commit_hash);
     
     FILE *f = fopen(metadata_path, "r");
     if (!f) {
@@ -143,7 +143,7 @@ void show_current_commit_notes(void) {
     
     char metadata_path[512];
     snprintf(metadata_path, sizeof(metadata_path), 
-             "%s/clisuite/metadata/%s.json", git_dir, commit_hash);
+             "%s/gitnote/metadata/%s.json", git_dir, commit_hash);
     
     FILE *f = fopen(metadata_path, "r");
     if (!f) {
@@ -164,7 +164,7 @@ void show_current_commit_notes(void) {
     
     // Display the note
     char note_path[512];
-    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+    snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     FILE *nf = fopen(note_path, "r");
     if (!nf) return;
@@ -201,8 +201,8 @@ int install_hooks(void) {
     FILE *f = fopen(hook_path, "w");
     if (f) {
         fprintf(f, "#!/bin/sh\n");
-        fprintf(f, "# clisuite post-commit hook\n");
-        fprintf(f, "clisuite hook post-commit\n");
+        fprintf(f, "# gitnote post-commit hook\n");
+        fprintf(f, "gitnote hook post-commit\n");
         fclose(f);
         chmod(hook_path, 0755);
         printf("Installed post-commit hook\n");
@@ -212,8 +212,8 @@ int install_hooks(void) {
     f = fopen(hook_path, "w");
     if (f) {
         fprintf(f, "#!/bin/sh\n");
-        fprintf(f, "# clisuite post-merge hook\n");
-        fprintf(f, "clisuite hook post-merge\n");
+        fprintf(f, "# gitnote post-merge hook\n");
+        fprintf(f, "gitnote hook post-merge\n");
         fclose(f);
         chmod(hook_path, 0755);
         printf("Installed post-merge hook\n");

@@ -8,13 +8,13 @@
 
 static int check_note_exists(const char *note_id, const char *git_dir) {
     char note_path[512];
-    snprintf(note_path, sizeof(note_path), "%s/clisuite/notes/%s.json", git_dir, note_id);
+    snprintf(note_path, sizeof(note_path), "%s/gitnote/notes/%s.json", git_dir, note_id);
     
     struct stat st;
     return (stat(note_path, &st) == 0);
 }
 
-int verify_clisuite(void) {
+int verify_gitnote(void) {
     char *git_dir = get_git_dir();
     if (!git_dir) {
         fprintf(stderr, "\033[90mNot in a git repository.\033[0m\n");
@@ -22,7 +22,7 @@ int verify_clisuite(void) {
     }
     
     char metadata_dir[512];
-    snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/gitnote/metadata", git_dir);
     
     DIR *dir = opendir(metadata_dir);
     if (!dir) {
@@ -33,7 +33,7 @@ int verify_clisuite(void) {
     int total = 0;
     int orphaned = 0;
     
-    printf("\033[90mVerifying clisuite data...\033[0m\n");
+    printf("\033[90mVerifying gitnote data...\033[0m\n");
     
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
@@ -71,18 +71,18 @@ int verify_clisuite(void) {
         printf("  \033[1;92m✓\033[0m All %d attachments valid\n", total);
     } else {
         printf("  \033[1;91m%d orphaned attachments found\033[0m\n", orphaned);
-        printf("  Run \033[97mclisuite repair\033[0m to clean up\n");
+        printf("  Run \033[97mgitnote repair\033[0m to clean up\n");
     }
     
     return orphaned;
 }
 
-int repair_clisuite(void) {
+int repair_gitnote(void) {
     char *git_dir = get_git_dir();
     if (!git_dir) return -1;
     
     char metadata_dir[512];
-    snprintf(metadata_dir, sizeof(metadata_dir), "%s/clisuite/metadata", git_dir);
+    snprintf(metadata_dir, sizeof(metadata_dir), "%s/gitnote/metadata", git_dir);
     
     DIR *dir = opendir(metadata_dir);
     if (!dir) {
@@ -92,7 +92,7 @@ int repair_clisuite(void) {
     
     int removed = 0;
     
-    printf("\033[90mRepairing clisuite data...\033[0m\n");
+    printf("\033[90mRepairing gitnote data...\033[0m\n");
     
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {

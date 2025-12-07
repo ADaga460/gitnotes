@@ -12,7 +12,7 @@ void print_help(void);
 
 void handle_todo(int argc, char *argv[], sqlite3 *db) {
     if (argc < 3) { 
-        printf("Usage: clisuite todo [add|list|done|delete]\n"); 
+        printf("Usage: gitnote todo [add|list|done|delete]\n"); 
         return; 
     }
 
@@ -61,7 +61,7 @@ void handle_todo(int argc, char *argv[], sqlite3 *db) {
 
 void handle_note(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite note [add|list|show|edit|delete|search]\n");
+        printf("Usage: gitnote note [add|list|show|edit|delete|search]\n");
         return;
     }
 
@@ -102,12 +102,12 @@ void handle_note(int argc, char *argv[]) {
 
 void handle_attach(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite attach [type] [path] --note [note_id]\n");
+        printf("Usage: gitnote attach [type] [path] --note [note_id]\n");
         printf("Types: commit, file, dir\n");
         printf("Examples:\n");
-        printf("  clisuite attach commit HEAD --note note_123\n");
-        printf("  clisuite attach file src/main.c --note note_456\n");
-        printf("  clisuite attach dir src/ --note note_789\n");
+        printf("  gitnote attach commit HEAD --note note_123\n");
+        printf("  gitnote attach file src/main.c --note note_456\n");
+        printf("  gitnote attach dir src/ --note note_789\n");
         return;
     }
 
@@ -151,13 +151,13 @@ void handle_attach(int argc, char *argv[]) {
 
 void handle_show(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite show [type] [path] [--recursive]\n");
+        printf("Usage: gitnote show [type] [path] [--recursive]\n");
         printf("Types: commit, file, dir\n");
         printf("Examples:\n");
-        printf("  clisuite show commit HEAD\n");
-        printf("  clisuite show file src/main.c\n");
-        printf("  clisuite show dir src/\n");
-        printf("  clisuite show dir src/ --recursive\n");
+        printf("  gitnote show commit HEAD\n");
+        printf("  gitnote show file src/main.c\n");
+        printf("  gitnote show dir src/\n");
+        printf("  gitnote show dir src/ --recursive\n");
         return;
     }
 
@@ -210,33 +210,33 @@ void handle_hook(int argc, char *argv[]) {
     if (argc < 3) return;
 
     if (strcmp(argv[2], "post-commit") == 0) {
-        printf("[clisuite] post-commit hook triggered\n");
+        printf("[gitnote] post-commit hook triggered\n");
     }
     else if (strcmp(argv[2], "post-merge") == 0) {
-        printf("[clisuite] post-merge hook triggered\n");
+        printf("[gitnote] post-merge hook triggered\n");
     }
 }
 
 void print_help(void) {
-    printf("clisuite - Git-integrated productivity CLI\n\n");
+    printf("gitnote - Git-integrated productivity CLI\n\n");
     printf("Usage:\n");
-    printf("  clisuite init                              - Initialize clisuite in git repo\n");
-    printf("  clisuite install-hooks                     - Install git hooks\n");
-    printf("  clisuite verify                            - Check for orphaned attachments\n");
-    printf("  clisuite repair                            - Clean up orphaned attachments\n");
-    printf("  clisuite todo [add|list|done|delete]       - Manage private todos\n");
-    printf("  clisuite note [add|edit|list|show|delete|search] - Manage shared notes\n");
-    printf("  clisuite attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
-    printf("  clisuite show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
-    printf("  clisuite sync                              - Sync metadata to .clisuite/\n");
-    printf("  clisuite pull                              - Pull remote metadata\n");
-    printf("  clisuite reset [--tracked-only]            - Erase all clisuite data\n");
-    printf("  clisuite help\n");
+    printf("  gitnote init                              - Initialize gitnote in git repo\n");
+    printf("  gitnote install-hooks                     - Install git hooks\n");
+    printf("  gitnote verify                            - Check for orphaned attachments\n");
+    printf("  gitnote repair                            - Clean up orphaned attachments\n");
+    printf("  gitnote todo [add|list|done|delete]       - Manage private todos\n");
+    printf("  gitnote note [add|edit|list|show|delete|search] - Manage shared notes\n");
+    printf("  gitnote attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
+    printf("  gitnote show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
+    printf("  gitnote sync                              - Sync metadata to .gitnote/\n");
+    printf("  gitnote pull                              - Pull remote metadata\n");
+    printf("  gitnote reset [--tracked-only]            - Erase all gitnote data\n");
+    printf("  gitnote help\n");
     printf("\nExamples:\n");
-    printf("  clisuite note search \"memory leak\"\n");
-    printf("  clisuite note edit note_123 \"New Title\" \"New content\"\n");
-    printf("  clisuite attach file src/main.c --note note_456\n");
-    printf("  clisuite show dir src/ --recursive\n");
+    printf("  gitnote note search \"memory leak\"\n");
+    printf("  gitnote note edit note_123 \"New Title\" \"New content\"\n");
+    printf("  gitnote attach file src/main.c --note note_456\n");
+    printf("  gitnote show dir src/ --recursive\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -274,12 +274,12 @@ int main(int argc, char *argv[]) {
         if (argc > 2 && strcmp(argv[2], "--tracked-only") == 0) {
             tracked_only = 1;
         }
-        printf("WARNING: This will erase all clisuite data!\n");
+        printf("WARNING: This will erase all gitnote data!\n");
         printf("Continue? (y/n): ");
         char confirm;
         scanf(" %c", &confirm);
         if (confirm == 'y' || confirm == 'Y') {
-            reset_clisuite(tracked_only);
+            reset_gitnote(tracked_only);
         } else {
             printf("Reset cancelled.\n");
         }
@@ -292,12 +292,12 @@ int main(int argc, char *argv[]) {
     }
 
     if (strcmp(argv[1], "verify") == 0) {
-        verify_clisuite();
+        verify_gitnote();
         return 0;
     }
 
     if (strcmp(argv[1], "repair") == 0) {
-        repair_clisuite();
+        repair_gitnote();
         return 0;
     }
 

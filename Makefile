@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -Iinclude
 SRC = src/main.c src/db.c src/git_integration.c src/notes.c src/sync.c src/verify.c
-OUT = clisuite
+OUT = gitnote
 LIBS = -lsqlite3
 
 all:

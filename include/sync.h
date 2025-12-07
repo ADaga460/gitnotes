@@ -7,6 +7,6 @@ int sync_from_tracked(void);
 
 int install_sync_hooks(void);
 
-int reset_clisuite(int tracked_only);
+int reset_gitnote(int tracked_only);
 
 #endif

@@ -56,19 +56,19 @@ int sync_to_tracked(void) {
     char *git_dir = get_git_dir();
     if (!git_dir) return -1;
     
-    mkdir(".clisuite", 0755);
-    mkdir(".clisuite/notes", 0755);
-    mkdir(".clisuite/metadata", 0755);
+    mkdir(".gitnote", 0755);
+    mkdir(".gitnote/notes", 0755);
+    mkdir(".gitnote/metadata", 0755);
     
     char local_notes[512], local_metadata[512];
-    snprintf(local_notes, sizeof(local_notes), "%s/clisuite/notes", git_dir);
-    snprintf(local_metadata, sizeof(local_metadata), "%s/clisuite/metadata", git_dir);
+    snprintf(local_notes, sizeof(local_notes), "%s/gitnote/notes", git_dir);
+    snprintf(local_metadata, sizeof(local_metadata), "%s/gitnote/metadata", git_dir);
     
-    copy_directory(local_notes, ".clisuite/notes");
-    copy_directory(local_metadata, ".clisuite/metadata");
+    copy_directory(local_notes, ".gitnote/notes");
+    copy_directory(local_metadata, ".gitnote/metadata");
     
-    printf("Synced metadata to .clisuite/ (ready to commit)\n");
-    printf("Run: git add .clisuite && git commit -m 'Update metadata'\n");
+    printf("Synced metadata to .gitnote/ (ready to commit)\n");
+    printf("Run: git add .gitnote && git commit -m 'Update metadata'\n");
     return 0;
 }
 
@@ -77,19 +77,19 @@ int sync_from_tracked(void) {
     if (!git_dir) return -1;
     
     struct stat st;
-    if (stat(".clisuite", &st) != 0) {
-        printf("No tracked metadata found (.clisuite/ doesn't exist)\n");
+    if (stat(".gitnote", &st) != 0) {
+        printf("No tracked metadata found (.gitnote/ doesn't exist)\n");
         return 0;
     }
     
     char local_notes[512], local_metadata[512];
-    snprintf(local_notes, sizeof(local_notes), "%s/clisuite/notes", git_dir);
-    snprintf(local_metadata, sizeof(local_metadata), "%s/clisuite/metadata", git_dir);
+    snprintf(local_notes, sizeof(local_notes), "%s/gitnote/notes", git_dir);
+    snprintf(local_metadata, sizeof(local_metadata), "%s/gitnote/metadata", git_dir);
     
-    copy_directory(".clisuite/notes", local_notes);
-    copy_directory(".clisuite/metadata", local_metadata);
+    copy_directory(".gitnote/notes", local_notes);
+    copy_directory(".gitnote/metadata", local_metadata);
     
-    printf("Synced remote metadata from .clisuite/\n");
+    printf("Synced remote metadata from .gitnote/\n");
     
     show_current_commit_notes();
     
@@ -106,10 +106,10 @@ int install_sync_hooks(void) {
     FILE *f = fopen(hook_path, "w");
     if (f) {
         fprintf(f, "#!/bin/sh\n");
-        fprintf(f, "# clisuite pre-push hook\n");
-        fprintf(f, "clisuite sync\n");
-        fprintf(f, "if [ -d .clisuite ]; then\n");
-        fprintf(f, "  git add .clisuite/ 2>/dev/null || true\n");
+        fprintf(f, "# gitnote pre-push hook\n");
+        fprintf(f, "gitnote sync\n");
+        fprintf(f, "if [ -d .gitnote ]; then\n");
+        fprintf(f, "  git add .gitnote/ 2>/dev/null || true\n");
         fprintf(f, "  git commit --amend --no-edit --no-verify 2>/dev/null || true\n");
         fprintf(f, "fi\n");
         fclose(f);
@@ -121,8 +121,8 @@ int install_sync_hooks(void) {
     f = fopen(hook_path, "w");
     if (f) {
         fprintf(f, "#!/bin/sh\n");
-        fprintf(f, "# clisuite post-merge hook\n");
-        fprintf(f, "clisuite pull\n");
+        fprintf(f, "# gitnote post-merge hook\n");
+        fprintf(f, "gitnote pull\n");
         fclose(f);
         chmod(hook_path, 0755);
         printf("Installed post-merge hook\n");
@@ -132,8 +132,8 @@ int install_sync_hooks(void) {
     f = fopen(hook_path, "w");
     if (f) {
         fprintf(f, "#!/bin/sh\n");
-        fprintf(f, "# clisuite post-checkout hook\n");
-        fprintf(f, "clisuite pull\n");
+        fprintf(f, "# gitnote post-checkout hook\n");
+        fprintf(f, "gitnote pull\n");
         fclose(f);
         chmod(hook_path, 0755);
         printf("Installed post-checkout hook\n");
@@ -168,26 +168,26 @@ static void remove_directory(const char *path) {
     rmdir(path);
 }
 
-int reset_clisuite(int tracked_only) {
+int reset_gitnote(int tracked_only) {
     char *git_dir = get_git_dir();
     
     if (tracked_only) {
-        remove_directory(".clisuite");
-        printf("Removed .clisuite/ (tracked metadata)\n");
-        printf("Run: git add .clisuite && git commit -m 'Remove metadata'\n");
+        remove_directory(".gitnote");
+        printf("Removed .gitnote/ (tracked metadata)\n");
+        printf("Run: git add .gitnote && git commit -m 'Remove metadata'\n");
         return 0;
     }
     
     if (git_dir) {
         char local_path[512];
-        snprintf(local_path, sizeof(local_path), "%s/clisuite", git_dir);
+        snprintf(local_path, sizeof(local_path), "%s/gitnote", git_dir);
         remove_directory(local_path);
-        printf("Removed .git/clisuite/ (local data)\n");
+        printf("Removed .git/gitnote/ (local data)\n");
     }
     
-    remove_directory(".clisuite");
-    printf("Removed .clisuite/ (tracked metadata)\n");
-    printf("All clisuite data has been erased.\n");
+    remove_directory(".gitnote");
+    printf("Removed .gitnote/ (tracked metadata)\n");
+    printf("All gitnote data has been erased.\n");
     
     return 0;
 }
