@@ -6,6 +6,7 @@
 #include "git_integration.h"
 #include "notes.h"
 #include "sync.h"
+#include "verify.h"
 
 void print_help(void);
 
@@ -60,7 +61,7 @@ void handle_todo(int argc, char *argv[], sqlite3 *db) {
 
 void handle_note(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Usage: clisuite note [add|list|show|delete]\n");
+        printf("Usage: clisuite note [add|list|show|edit|delete|search]\n");
         return;
     }
 
@@ -68,6 +69,20 @@ void handle_note(int argc, char *argv[]) {
         if (argc < 4) { printf("Provide note title.\n"); return; }
         const char *content = argc > 4 ? argv[4] : "";
         add_note(argv[3], content);
+    }
+    else if (strcmp(argv[2], "edit") == 0) {
+        if (argc < 4) { printf("Provide note ID.\n"); return; }
+        const char *title = argc > 4 ? argv[4] : NULL;
+        const char *content = argc > 5 ? argv[5] : NULL;
+        if (!title && !content) {
+            printf("Provide new title and/or content.\n");
+            return;
+        }
+        edit_note(argv[3], title, content);
+    }
+    else if (strcmp(argv[2], "search") == 0) {
+        if (argc < 4) { printf("Provide search query.\n"); return; }
+        search_notes(argv[3]);
     }
     else if (strcmp(argv[2], "list") == 0) {
         list_notes();
@@ -207,8 +222,10 @@ void print_help(void) {
     printf("Usage:\n");
     printf("  clisuite init                              - Initialize clisuite in git repo\n");
     printf("  clisuite install-hooks                     - Install git hooks\n");
+    printf("  clisuite verify                            - Check for orphaned attachments\n");
+    printf("  clisuite repair                            - Clean up orphaned attachments\n");
     printf("  clisuite todo [add|list|done|delete]       - Manage private todos\n");
-    printf("  clisuite note [add|list|show|delete]       - Manage shared notes\n");
+    printf("  clisuite note [add|edit|list|show|delete|search] - Manage shared notes\n");
     printf("  clisuite attach [type] [path] --note [id]  - Attach note to commit/file/dir\n");
     printf("  clisuite show [type] [path] [--recursive]  - Show notes for commit/file/dir\n");
     printf("  clisuite sync                              - Sync metadata to .clisuite/\n");
@@ -216,9 +233,9 @@ void print_help(void) {
     printf("  clisuite reset [--tracked-only]            - Erase all clisuite data\n");
     printf("  clisuite help\n");
     printf("\nExamples:\n");
-    printf("  clisuite attach commit HEAD --note note_123\n");
+    printf("  clisuite note search \"memory leak\"\n");
+    printf("  clisuite note edit note_123 \"New Title\" \"New content\"\n");
     printf("  clisuite attach file src/main.c --note note_456\n");
-    printf("  clisuite show file src/main.c\n");
     printf("  clisuite show dir src/ --recursive\n");
 }
 
@@ -271,6 +288,16 @@ int main(int argc, char *argv[]) {
 
     if (strcmp(argv[1], "help") == 0) {
         print_help();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "verify") == 0) {
+        verify_clisuite();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "repair") == 0) {
+        repair_clisuite();
         return 0;
     }
 

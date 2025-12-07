@@ -15,4 +15,8 @@ void show_target_notes(const char *target_type, const char *target_path);
 
 void show_directory_notes_recursive(const char *dir_path);
 
+int edit_note(const char *note_id, const char *new_title, const char *new_content);
+
+void search_notes(const char *query);
+
 #endif

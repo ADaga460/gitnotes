@@ -1,0 +1,1 @@
+I don't know how to write zsh or bash scripts, so I had claude generate some. 
