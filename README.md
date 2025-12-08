@@ -1,6 +1,7 @@
 # **gitnote - Git-integrated note CLI**
 
 _btw... this completely works. Anything else I push is additional features or efficiency._ 
+
 _Technically you can push this in prod, but I'm implementing JSONL soon, so don't do that yet!_
 
 # Usage
